@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Troca — Renda Fixa</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    header { margin-bottom: 2rem; }
+    header h1 { font-size: 20px; font-weight: 500; color: #1a1a18; }
+    header p  { font-size: 13px; color: #888780; margin-top: 4px; }
+
+    .section {
+      background: #fff;
+      border: 0.5px solid rgba(0,0,0,0.12);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: #888780;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label  { font-size: 12px; color: #5f5e5a; }
+
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 0.5px solid rgba(0,0,0,0.2);
+      border-radius: 8px;
+      background: #fff;
+      color: #1a1a18;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus { border-color: rgba(0,0,0,0.4); }
+
+    button {
+      width: 100%;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 0.5px solid rgba(0,0,0,0.2);
+      background: #1a1a18;
+      color: #fff;
+      margin-bottom: 1rem;
+      transition: opacity 0.15s;
+    }
+
+    button:hover  { opacity: 0.85; }
+    button:active { opacity: 0.70; }
+
+    .info-box {
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 13px;
+      color: #1a1a18;
+      line-height: 1.9;
+      display: none;
+    }
+
+    .info-box b { font-weight: 500; }
+
+    .cards {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .card { background: #f5f4f0; border-radius: 8px; padding: 1rem; }
+    .card-label { font-size: 12px; color: #888780; margin-bottom: 2px; }
+    .card-name  { font-size: 13px; font-weight: 500; color: #1a1a18; margin-bottom: 8px; }
+    .card-val   { font-size: 22px; font-weight: 500; }
+    .card-sub   { font-size: 12px; color: #888780; margin-top: 2px; }
+
+    .veredito {
+      background: #f5f4f0;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 13px;
+      color: #1a1a18;
+      line-height: 1.8;
+      display: none;
+    }
+
+    .pos { color: #1D9E75; }
+    .neg { color: #D85A30; }
+
+    .legenda {
+      display: none;
+      gap: 16px;
+      font-size: 12px;
+      color: #888780;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .legenda span { display: flex; align-items: center; gap: 5px; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      display: none;
+      margin-bottom: 1.5rem;
+    }
+
+    .table-wrap { overflow-x: auto; display: none; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    th {
+      font-size: 11px;
+      font-weight: 500;
+      color: #888780;
+      text-align: right;
+      padding: 7px 10px;
+      border-bottom: 0.5px solid rgba(0,0,0,0.1);
+    }
+
+    th:first-child { text-align: left; }
+
+    td {
+      padding: 6px 10px;
+      text-align: right;
+      border-bottom: 0.5px solid rgba(0,0,0,0.07);
+      color: #1a1a18;
+    }
+
+    td:first-child { text-align: left; color: #888780; }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 11px;
+      color: #b4b2a9;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Calculadora de Troca — Renda Fixa</h1>
+    <p>IPCA+ vs Prefixado · com pedágio, IR de saída e breakeven</p>
+  </header>
+
+  <div class="section">
+    <div class="section-title">Parâmetros gerais</div>
+    <div class="grid">
+      <div class="field">
+        <label>Prazo restante (meses)</label>
+        <input type="number" id="prazo" value="36" min="1" max="120">
+      </div>
+      <div class="field">
+        <label>IPCA esperado (% a.a.)</label>
+        <input type="number" id="ipca" value="5.0" step="0.1">
+      </div>
+      <div class="field">
+        <label>Spread IPCA+ (% a.a.)</label>
+        <input type="number" id="spread" value="7.0" step="0.1">
+      </div>
+      <div class="field">
+        <label>Taxa prefixado (% a.a.)</label>
+        <input type="number" id="pre" value="14.0" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Ativo atual (já rodando)</div>
+    <div class="grid">
+      <div class="field">
+        <label>Qual ativo está rodando?</label>
+        <select id="ativoAtual">
+          <option value="A">IPCA+</option>
+          <option value="B">Prefixado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Data de entrada</label>
+        <input type="date" id="dataEntrada">
+      </div>
+      <div class="field">
+        <label>PU de entrada (custo, R$)</label>
+        <input type="number" id="puEntrada" value="1000.00" step="0.01">
+      </div>
+      <div class="field">
+        <label>PU atual (mercado, R$)</label>
+        <input type="number" id="puAtual" value="1050.00" step="0.01">
+      </div>
+      <div class="field">
+        <label>Deságio saída (% sobre PU)</label>
+        <input type="number" id="desagio" value="1.5" step="0.01">
+      </div>
+      <div class="field">
+        <label>Quantidade de títulos</label>
+        <input type="number" id="qtd" value="100" step="1">
+      </div>
+    </div>
+  </div>
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="pedagioBox" class="info-box"></div>
+
+  <div class="cards" id="cards">
+    <div class="card">
+      <div class="card-label">Ativo atual</div>
+      <div class="card-name" id="nomeA"></div>
+      <div class="card-val"  id="liqA" style="color:#378ADD;"></div>
+      <div class="card-sub"  id="brutoA"></div>
+      <div class="card-sub"  id="irA"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ativo novo</div>
+      <div class="card-name" id="nomeB"></div>
+      <div class="card-val"  id="liqB" style="color:#1D9E75;"></div>
+      <div class="card-sub"  id="brutoB"></div>
+      <div class="card-sub"  id="irB"></div>
+    </div>
+  </div>
+
+  <div id="veredito" class="veredito"></div>
+
+  <div id="legenda" class="legenda">
+    <span><span class="leg-dot" style="background:#378ADD;"></span><span id="legNomeA"></span></span>
+    <span><span class="leg-dot" style="background:#1D9E75;"></span><span id="legNomeB"></span></span>
+  </div>
+
+  <div class="chart-wrap" id="chartWrap">
+    <canvas id="grafico"></canvas>
+  </div>
+
+  <div class="table-wrap" id="tabelaWrap">
+    <table id="tabela"></table>
+  </div>
+
+  <footer>Ethimos · uso interno · os valores são estimativas baseadas nos parâmetros informados</footer>
+
+</div>
+
+<script>
+  let chartInst = null;
+
+  const hoje = new Date();
+  const defaultEntrada = new Date(hoje);
+  defaultEntrada.setMonth(defaultEntrada.getMonth() - 14);
+  document.getElementById('dataEntrada').value = defaultEntrada.toISOString().split('T')[0];
+  document.getElementById('dataEntrada').max   = hoje.toISOString().split('T')[0];
+
+  function mesesDecorridos(dataStr) {
+    return Math.max(0, Math.floor((hoje - new Date(dataStr)) / (1000 * 60 * 60 * 24 * 30.4375)));
+  }
+
+  function aliquotaIR(meses) {
+    if (meses <= 6)  return 0.225;
+    if (meses <= 12) return 0.20;
+    if (meses <= 24) return 0.175;
+    return 0.15;
+  }
+
+  function descAliquota(meses) {
+    if (meses <= 6)  return '22,5% (até 6 meses)';
+    if (meses <= 12) return '20,0% (7–12 meses)';
+    if (meses <= 24) return '17,5% (13–24 meses)';
+    return '15,0% (acima de 24 meses)';
+  }
+
+  function fmt(v) {
+    return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function calcular() {
+    const N           = parseInt(document.getElementById('prazo').value);
+    const ipcaAnual   = parseFloat(document.getElementById('ipca').value)   / 100;
+    const spreadAnual = parseFloat(document.getElementById('spread').value)  / 100;
+    const preAnual    = parseFloat(document.getElementById('pre').value)     / 100;
+    const ativoAtual  = document.getElementById('ativoAtual').value;
+    const dataEntrada = document.getElementById('dataEntrada').value;
+    const puEntrada   = parseFloat(document.getElementById('puEntrada').value);
+    const puAtual     = parseFloat(document.getElementById('puAtual').value);
+    const desagioPerc = parseFloat(document.getElementById('desagio').value) / 100;
+    const qtd         = parseFloat(document.getElementById('qtd').value);
+
+    const mesesRodando = mesesDecorridos(dataEntrada);
+    const aliqSaida    = aliquotaIR(mesesRodando);
+
+    const ipcaMes   = Math.pow(1 + ipcaAnual,   1/12) - 1;
+    const spreadMes = Math.pow(1 + spreadAnual,  1/12) - 1;
+    const preMes    = Math.pow(1 + preAnual,     1/12) - 1;
+    const taxaIPCA  = (1 + ipcaMes) * (1 + spreadMes) - 1;
+    const taxaPRE   = preMes;
+
+    const taxaAtual = ativoAtual === 'A' ? taxaIPCA : taxaPRE;
+    const taxaNovo  = ativoAtual === 'A' ? taxaPRE  : taxaIPCA;
+    const spStr     = parseFloat(document.getElementById('spread').value).toFixed(1);
+    const preStr    = parseFloat(document.getElementById('pre').value).toFixed(1);
+    const nomeAtual = ativoAtual === 'A' ? 'IPCA+ ' + spStr + '%'      : 'Prefixado ' + preStr + '%';
+    const nomeNovo  = ativoAtual === 'A' ? 'Prefixado ' + preStr + '%'  : 'IPCA+ ' + spStr + '%';
+
+    const valorAtualTotal   = puAtual   * qtd;
+    const valorEntradaTotal = puEntrada * qtd;
+    const puDesagiado       = puAtual * (1 - desagioPerc);
+    const valorDesagiado    = puDesagiado * qtd;
+    const ganhoSaida        = Math.max(0, valorDesagiado - valorEntradaTotal);
+    const irSaida           = ganhoSaida * aliqSaida;
+    const capitalNovo       = valorDesagiado - irSaida;
+    const custoTotal        = valorAtualTotal - capitalNovo;
+    const aliqFinal         = aliquotaIR(N);
+
+    const labelsChart = ['Hoje'];
+    const serieAtual  = [valorAtualTotal];
+    const serieNovo   = [capitalNovo];
+    const linhas      = [];
+
+    let saldoAtual = valorAtualTotal, saldoNovo = capitalNovo;
+    let breakevenMes = null, breakevenAntes = null;
+
+    for (let m = 1; m <= N; m++) {
+      saldoAtual = saldoAtual * (1 + taxaAtual);
+      saldoNovo  = saldoNovo  * (1 + taxaNovo);
+      labelsChart.push('M' + m);
+      serieAtual.push(parseFloat(saldoAtual.toFixed(2)));
+      serieNovo.push(parseFloat(saldoNovo.toFixed(2)));
+      if (breakevenMes === null && saldoNovo > saldoAtual) { breakevenMes = m; breakevenAntes = m - 1; }
+      if (m <= 3 || m % 6 === 0 || m === N) linhas.push({ m, saldoAtual, saldoNovo });
+    }
+
+    const irAtualFinal = Math.max(0, saldoAtual - valorEntradaTotal) * aliqFinal;
+    const irNovoFinal  = Math.max(0, saldoNovo  - capitalNovo)       * aliqFinal;
+    const liqAtual     = saldoAtual - irAtualFinal;
+    const liqNovo      = saldoNovo  - irNovoFinal;
+
+    document.getElementById('pedagioBox').style.display = 'block';
+    document.getElementById('pedagioBox').innerHTML =
+      'Tempo rodando: <b>' + mesesRodando + ' meses</b> → alíquota IR saída: <b>' + descAliquota(mesesRodando) + '</b><br>' +
+      'PU atual: <b>' + fmt(puAtual) + '</b> × ' + qtd + ' = <b>' + fmt(valorAtualTotal) + '</b><br>' +
+      'Após deságio de ' + (desagioPerc * 100).toFixed(2) + '%: <b>' + fmt(valorDesagiado) + '</b><br>' +
+      'Ganho tributável na saída: <b>' + fmt(ganhoSaida) + '</b> → IR: <b>− ' + fmt(irSaida) + '</b><br>' +
+      'Capital que entra no ativo novo: <b>' + fmt(capitalNovo) + '</b> &nbsp;' +
+      '<span class="neg">(custo total da troca: ' + fmt(custoTotal) + ' / ' + ((custoTotal / valorAtualTotal) * 100).toFixed(2) + '%)</span>';
+
+    document.getElementById('nomeA').textContent  = nomeAtual;
+    document.getElementById('nomeB').textContent  = nomeNovo;
+    document.getElementById('liqA').textContent   = fmt(liqAtual);
+    document.getElementById('liqB').textContent   = fmt(liqNovo);
+    document.getElementById('brutoA').textContent = 'Bruto: ' + fmt(saldoAtual);
+    document.getElementById('brutoB').textContent = 'Bruto: ' + fmt(saldoNovo);
+    document.getElementById('irA').textContent    = 'IR (' + (aliqFinal * 100).toFixed(1) + '%): ' + fmt(irAtualFinal);
+    document.getElementById('irB').textContent    = 'IR (' + (aliqFinal * 100).toFixed(1) + '%): ' + fmt(irNovoFinal);
+    document.getElementById('legNomeA').textContent = nomeAtual + ' (atual)';
+    document.getElementById('legNomeB').textContent = nomeNovo  + ' (novo)';
+    document.getElementById('cards').style.display = 'grid';
+
+    const dif = liqNovo - liqAtual;
+    let breakevenTxt = '';
+    if (breakevenMes !== null) {
+      breakevenTxt = ' O breakeven acontece entre os meses <b>' + breakevenAntes + '</b> e <b>' + breakevenMes + '</b>.';
+    } else if (dif >= 0) {
+      breakevenTxt = ' O ativo novo parte na frente desde o início.';
+    } else {
+      breakevenTxt = ' O ativo novo não recupera o custo de saída dentro do prazo analisado.';
+    }
+
+    const vEl = document.getElementById('veredito');
+    vEl.style.display = 'block';
+    vEl.innerHTML = dif >= 0
+      ? 'A troca <b>vale a pena</b>: o ativo novo entrega <b class="pos">+' + fmt(dif) + '</b> a mais no líquido, mesmo após o custo de saída.' + breakevenTxt
+      : 'A troca <b>não compensa</b> com esses parâmetros: o ativo atual ainda entrega <b class="neg">' + fmt(Math.abs(dif)) + '</b> a mais no líquido.' + breakevenTxt;
+
+    document.getElementById('legenda').style.display   = 'flex';
+    document.getElementById('chartWrap').style.display  = 'block';
+    document.getElementById('tabelaWrap').style.display = 'block';
+
+    if (chartInst) chartInst.destroy();
+    chartInst = new Chart(document.getElementById('grafico'), {
+      type: 'line',
+      data: {
+        labels: labelsChart,
+        datasets: [
+          { label: nomeAtual, data: serieAtual, borderColor: '#378ADD', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 },
+          { label: nomeNovo,  data: serieNovo,  borderColor: '#1D9E75', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, borderDash: [5, 3] }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } }
+        },
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 12, font: { size: 11 }, color: '#888780' }, grid: { display: false } },
+          y: { ticks: { font: { size: 11 }, color: '#888780', callback: v => 'R$ ' + (v / 1000).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        }
+      }
+    });
+
+    let html = '<thead><tr><th>Mês</th><th>' + nomeAtual + ' (atual)</th><th>' + nomeNovo + ' (novo)</th><th>Diferença</th></tr></thead><tbody>';
+    linhas.forEach(r => {
+      const d = r.saldoNovo - r.saldoAtual;
+      html += '<tr><td>' + r.m + '</td><td>' + fmt(r.saldoAtual) + '</td><td>' + fmt(r.saldoNovo) + '</td><td class="' + (d >= 0 ? 'pos' : 'neg') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '</td></tr>';
+    });
+    html += '</tbody>';
+    document.getElementById('tabela').innerHTML = html;
+  }
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Troca — %CDI c/ Juros Periódicos vs Prefixado</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { margin-bottom: 2rem; }
+    header h1 { font-size: 20px; font-weight: 500; color: #1a1a18; }
+    header p  { font-size: 13px; color: #888780; margin-top: 4px; }
+    .section { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+    .section-title { font-size: 11px; font-weight: 500; color: #888780; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 12px; color: #5f5e5a; }
+    input, select { width: 100%; padding: 8px 10px; font-size: 14px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: #fff; color: #1a1a18; outline: none; transition: border-color 0.15s; }
+    input:focus, select:focus { border-color: rgba(0,0,0,0.4); }
+    button { width: 100%; padding: 11px; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); background: #1a1a18; color: #fff; margin-bottom: 1rem; transition: opacity 0.15s; }
+    button:hover  { opacity: 0.85; }
+    button:active { opacity: 0.70; }
+    .info-box { background: #f5f4f0; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 13px; color: #1a1a18; line-height: 1.9; display: none; }
+    .info-box b { font-weight: 500; }
+    .cards { display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+    .card { background: #f5f4f0; border-radius: 8px; padding: 1rem; }
+    .card-label { font-size: 12px; color: #888780; margin-bottom: 2px; }
+    .card-name  { font-size: 13px; font-weight: 500; color: #1a1a18; margin-bottom: 8px; }
+    .card-val   { font-size: 22px; font-weight: 500; }
+    .card-sub   { font-size: 12px; color: #888780; margin-top: 2px; }
+    .verd { background: #f5f4f0; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 0.5rem; font-size: 13px; color: #1a1a18; line-height: 1.8; display: none; }
+    .pos { color: #1D9E75; } .neg { color: #D85A30; }
+    .legenda { display: none; gap: 16px; font-size: 12px; color: #888780; margin-bottom: 8px; flex-wrap: wrap; }
+    .legenda span { display: flex; align-items: center; gap: 5px; }
+    .leg-dot  { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .leg-dash { width: 14px; height: 2px; flex-shrink: 0; }
+    .chart-wrap { position: relative; width: 100%; height: 300px; display: none; margin-bottom: 1.5rem; }
+    .table-wrap { overflow-x: auto; display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { font-size: 11px; font-weight: 500; color: #888780; text-align: right; padding: 7px 10px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+    th:first-child { text-align: left; }
+    td { padding: 6px 10px; text-align: right; border-bottom: 0.5px solid rgba(0,0,0,0.07); color: #1a1a18; }
+    td:first-child { text-align: left; color: #888780; }
+    tr.pag-row { background: #fffff2; }
+    footer { margin-top: 2rem; font-size: 11px; color: #b4b2a9; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Calculadora de Troca — %CDI c/ Juros Periódicos vs Prefixado</h1>
+    <p>Juros periódicos sobre o PU de entrada · dois cenários de CDI · pedágio, IR de saída e breakeven</p>
+  </header>
+
+  <div class="section">
+    <div class="section-title">Parâmetros gerais</div>
+    <div class="grid">
+      <div class="field"><label>Prazo restante (meses)</label><input type="number" id="prazo" value="36" min="1" max="120"></div>
+      <div class="field"><label>% do CDI contratado</label><input type="number" id="pctCDI" value="95" step="0.1"></div>
+      <div class="field"><label>Taxa prefixado (% a.a.)</label><input type="number" id="pre" value="13.0" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Juros periódicos (%CDI)</div>
+    <div class="grid">
+      <div class="field">
+        <label>Periodicidade dos juros</label>
+        <select id="period">
+          <option value="1">Mensal</option>
+          <option value="6" selected>Semestral</option>
+        </select>
+      </div>
+      <div class="field"><label>Meses para o próximo pagamento</label><input type="number" id="proxPag" value="3" min="1" max="6" step="1"></div>
+      <div class="field">
+        <label>Destino dos juros recebidos</label>
+        <select id="destino">
+          <option value="mesmo">Reinveste à mesma taxa (%CDI)</option>
+          <option value="cdi" selected>Reinveste ao CDI</option>
+          <option value="livre">Recebe livre</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Cenários de CDI</div>
+    <div class="grid">
+      <div class="field"><label>CDI base esperado (% a.a.)</label><input type="number" id="cdiBase" value="11.0" step="0.1"></div>
+      <div class="field"><label>CDI alternativo (% a.a.)</label><input type="number" id="cdiAlt" value="9.0" step="0.1"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Ativo atual (já rodando)</div>
+    <div class="grid">
+      <div class="field">
+        <label>Qual ativo está rodando?</label>
+        <select id="ativoAtual">
+          <option value="A">%CDI c/ juros periódicos</option>
+          <option value="B">Prefixado bullet</option>
+        </select>
+      </div>
+      <div class="field"><label>Data de entrada</label><input type="date" id="dataEntrada"></div>
+      <div class="field"><label>PU de entrada (custo, R$)</label><input type="number" id="puEntrada" value="1000.00" step="0.01"></div>
+      <div class="field"><label>PU atual (mercado, R$)</label><input type="number" id="puAtual" value="1050.00" step="0.01"></div>
+      <div class="field"><label>Deságio saída (% sobre PU)</label><input type="number" id="desagio" value="1.0" step="0.01"></div>
+      <div class="field"><label>Quantidade de títulos</label><input type="number" id="qtd" value="100" step="1"></div>
+    </div>
+  </div>
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="pedagioBox" class="info-box"></div>
+  <div id="resumoJuros" class="info-box"></div>
+
+  <div class="cards" id="cards">
+    <div class="card">
+      <div class="card-label" id="labelAt"></div>
+      <div class="card-name"  id="nomeAt"></div>
+      <div class="card-val"   id="liqAtBase" style="color:#378ADD;"></div>
+      <div class="card-sub"   id="subAt1"></div>
+      <div class="card-sub"   id="subAtAlt" style="color:#BA7517;"></div>
+    </div>
+    <div class="card">
+      <div class="card-label" id="labelNv"></div>
+      <div class="card-name"  id="nomeNv"></div>
+      <div class="card-val"   id="liqNvBase" style="color:#1D9E75;"></div>
+      <div class="card-sub"   id="subNv1"></div>
+      <div class="card-sub"   id="subNvAlt" style="color:#BA7517;"></div>
+    </div>
+  </div>
+
+  <div id="verdBase" class="verd"></div>
+  <div id="verdAlt"  class="verd"></div>
+
+  <div id="legenda" class="legenda"></div>
+
+  <div class="chart-wrap" id="chartWrap"><canvas id="grafico"></canvas></div>
+  <div class="table-wrap" id="tabelaWrap"><table id="tabela"></table></div>
+
+  <footer>Ethimos · uso interno · juros calculados sobre o PU de entrada (valor nominal original) · IR do reinvestimento calculado por pagamento individual</footer>
+
+</div>
+<script>
+  let chartInst = null;
+  const hoje = new Date();
+  const defEntrada = new Date(hoje); defEntrada.setMonth(defEntrada.getMonth() - 14);
+  document.getElementById('dataEntrada').value = defEntrada.toISOString().split('T')[0];
+  document.getElementById('dataEntrada').max   = hoje.toISOString().split('T')[0];
+
+  function mesesDec(d) { return Math.max(0, Math.floor((hoje - new Date(d)) / (1000*60*60*24*30.4375))); }
+  function aliqIR(m) {
+    if (m <= 6) return 0.225; if (m <= 12) return 0.20;
+    if (m <= 24) return 0.175; return 0.15;
+  }
+  function descAliq(m) {
+    if (m <= 6)  return '22,5% (até 6 meses)';
+    if (m <= 12) return '20,0% (7–12 meses)';
+    if (m <= 24) return '17,5% (13–24 meses)';
+    return '15,0% (acima de 24 meses)';
+  }
+  function fmt(v) { return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+
+  function simularCDIJuros(N, txCDIMes, reinvestMes, principal, custoPrincipal, mesesRodando, period, proxPag, destino) {
+    const serie = [principal];
+    let saldo = principal;
+    const pagtos = [];
+    let totalJurosBrutos = 0, totalIRjuros = 0, nPag = 0;
+
+    function isPag(m) { return m >= proxPag && (m - proxPag) % period === 0; }
+
+    for (let m = 1; m <= N; m++) {
+      saldo = saldo * (1 + txCDIMes);
+      for (const p of pagtos) p.saldo = p.saldo * (1 + reinvestMes);
+
+      if (isPag(m)) {
+        const prazoIR   = mesesRodando + m;
+        const jBrutos   = custoPrincipal * (Math.pow(1 + txCDIMes, period) - 1);
+        const irJuros   = jBrutos * aliqIR(prazoIR);
+        const jurosLiq  = jBrutos - irJuros;
+        totalJurosBrutos += jBrutos;
+        totalIRjuros     += irJuros;
+        nPag++;
+        saldo -= jBrutos;
+        if (destino !== 'livre') pagtos.push({ saldo: jurosLiq, capital: jurosLiq, entradaMes: m });
+      }
+
+      const saldoReinvest = pagtos.reduce((s, p) => s + p.saldo, 0);
+      serie.push(parseFloat((destino === 'livre' ? saldo : saldo + saldoReinvest).toFixed(2)));
+    }
+
+    const saldoReinvestFinal = pagtos.reduce((s, p) => s + p.saldo, 0);
+    let irReinvest = 0;
+    for (const p of pagtos) {
+      const prazoR  = N - p.entradaMes;
+      const ganhoR  = Math.max(0, p.saldo - p.capital);
+      irReinvest   += ganhoR * aliqIR(prazoR);
+    }
+    const liqReinvest = saldoReinvestFinal - irReinvest;
+    const irPrinc     = Math.max(0, saldo - custoPrincipal) * aliqIR(N);
+    const liqPrinc    = saldo - irPrinc;
+    const liqTotal    = destino === 'livre' ? liqPrinc : liqPrinc + liqReinvest;
+
+    return { serie, liqTotal, liqPrinc, liqReinvest, totalJurosBrutos, totalIRjuros, nPag,
+             saldoFinal: saldo, saldoReinvestFinal, irReinvest, irPrinc };
+  }
+
+  function simularPre(N, preMes, capital, custoPrincipal) {
+    const serie = [capital]; let s = capital;
+    for (let m = 1; m <= N; m++) { s = s * (1 + preMes); serie.push(parseFloat(s.toFixed(2))); }
+    const irP = Math.max(0, s - custoPrincipal) * aliqIR(N);
+    return { serie, liqTotal: s - irP, saldoFinal: s, irPrinc: irP };
+  }
+
+  function breakeven(sAt, sNv) {
+    for (let i = 1; i < sAt.length; i++)
+      if (sNv[i] > sAt[i]) return { mes: i, antes: i - 1 };
+    return null;
+  }
+  function bkTxt(bk, liqNv, liqAt) {
+    if (bk) return ' Breakeven entre os meses <b>' + bk.antes + '</b> e <b>' + bk.mes + '</b>.';
+    return liqNv >= liqAt ? ' O ativo novo parte na frente desde o início.' : ' O ativo novo não recupera o custo de saída no prazo analisado.';
+  }
+
+  function calcular() {
+    const N         = parseInt(document.getElementById('prazo').value);
+    const pctCDI    = parseFloat(document.getElementById('pctCDI').value)  / 100;
+    const preAnual  = parseFloat(document.getElementById('pre').value)     / 100;
+    const cdiBase   = parseFloat(document.getElementById('cdiBase').value) / 100;
+    const cdiAlt    = parseFloat(document.getElementById('cdiAlt').value)  / 100;
+    const period    = parseInt(document.getElementById('period').value);
+    const proxPag   = parseInt(document.getElementById('proxPag').value);
+    const destino   = document.getElementById('destino').value;
+    const isAtCDI   = document.getElementById('ativoAtual').value === 'A';
+    const puEntrada = parseFloat(document.getElementById('puEntrada').value);
+    const puAtual   = parseFloat(document.getElementById('puAtual').value);
+    const desagioP  = parseFloat(document.getElementById('desagio').value) / 100;
+    const qtd       = parseFloat(document.getElementById('qtd').value);
+    const mesesRod  = mesesDec(document.getElementById('dataEntrada').value);
+
+    const cdiBaseMes = Math.pow(1 + cdiBase, 1/12) - 1;
+    const cdiAltMes  = Math.pow(1 + cdiAlt,  1/12) - 1;
+    const preMes     = Math.pow(1 + preAnual, 1/12) - 1;
+    const txCDIBase  = pctCDI * cdiBaseMes;
+    const txCDIAlt   = pctCDI * cdiAltMes;
+
+    const reinvestBase = destino === 'cdi' ? cdiBaseMes : txCDIBase;
+    const reinvestAlt  = destino === 'cdi' ? cdiAltMes  : txCDIAlt;
+
+    const pctStr  = parseFloat(document.getElementById('pctCDI').value).toFixed(1);
+    const preStr  = parseFloat(document.getElementById('pre').value).toFixed(1);
+    const baseStr = parseFloat(document.getElementById('cdiBase').value).toFixed(1);
+    const altStr  = parseFloat(document.getElementById('cdiAlt').value).toFixed(1);
+    const nomeCDI = pctStr + '% CDI c/ juros ' + (period === 1 ? 'mensais' : 'semestrais');
+    const nomePRE = 'Prefixado ' + preStr + '%';
+    const nomeAt  = isAtCDI ? nomeCDI : nomePRE;
+    const nomeNv  = isAtCDI ? nomePRE : nomeCDI;
+
+    const valAt  = puAtual * qtd;
+    const custAt = puEntrada * qtd;
+    const valDes = puAtual * (1 - desagioP) * qtd;
+    const ganho  = Math.max(0, valDes - custAt);
+    const irSai  = ganho * aliqIR(mesesRod);
+    const capNv  = valDes - irSai;
+    const custo  = valAt - capNv;
+
+    let resAtBase, resAtAlt, resNvBase, resNvAlt;
+    if (isAtCDI) {
+      resAtBase = simularCDIJuros(N, txCDIBase, reinvestBase, valAt,  custAt, mesesRod, period, proxPag, destino);
+      resAtAlt  = simularCDIJuros(N, txCDIAlt,  reinvestAlt,  valAt,  custAt, mesesRod, period, proxPag, destino);
+      resNvBase = simularPre(N, preMes, capNv, capNv);
+      resNvAlt  = null;
+    } else {
+      resAtBase = simularPre(N, preMes, valAt, custAt);
+      resAtAlt  = null;
+      resNvBase = simularCDIJuros(N, txCDIBase, reinvestBase, capNv, capNv, 0, period, proxPag, destino);
+      resNvAlt  = simularCDIJuros(N, txCDIAlt,  reinvestAlt,  capNv, capNv, 0, period, proxPag, destino);
+    }
+
+    const sAtBase = resAtBase.serie;
+    const sAtAlt  = resAtAlt  ? resAtAlt.serie  : null;
+    const sNvBase = resNvBase.serie;
+    const sNvAlt  = resNvAlt  ? resNvAlt.serie  : null;
+
+    const liqAtBase = resAtBase.liqTotal;
+    const liqAtAlt  = resAtAlt  ? resAtAlt.liqTotal  : null;
+    const liqNvBase = resNvBase.liqTotal;
+    const liqNvAlt  = resNvAlt  ? resNvAlt.liqTotal  : null;
+
+    document.getElementById('pedagioBox').style.display = 'block';
+    document.getElementById('pedagioBox').innerHTML =
+      'Tempo rodando: <b>' + mesesRod + ' meses</b> → alíquota IR saída: <b>' + descAliq(mesesRod) + '</b><br>' +
+      'PU atual: <b>' + fmt(puAtual) + '</b> × ' + qtd + ' = <b>' + fmt(valAt) + '</b><br>' +
+      'Após deságio de ' + (desagioP*100).toFixed(2) + '%: <b>' + fmt(valDes) + '</b><br>' +
+      'Ganho tributável: <b>' + fmt(ganho) + '</b> → IR: <b>− ' + fmt(irSai) + '</b><br>' +
+      'Capital que entra no ativo novo: <b>' + fmt(capNv) + '</b> &nbsp;' +
+      '<span class="neg">(custo da troca: ' + fmt(custo) + ' / ' + ((custo/valAt)*100).toFixed(2) + '%)</span>';
+
+    const resCDI   = isAtCDI ? resAtBase : resNvBase;
+    const destiStr = destino === 'mesmo' ? 'reinvestido à mesma taxa (%CDI)'
+      : destino === 'cdi' ? 'reinvestido ao CDI (' + baseStr + '% a.a.)'
+      : 'recebido livre';
+    document.getElementById('resumoJuros').style.display = 'block';
+    document.getElementById('resumoJuros').innerHTML =
+      'Próximo pagamento em <b>' + proxPag + ' meses</b> → <b>' + resCDI.nPag + ' pagamentos</b> de juros<br>' +
+      'Juros calculados sobre o <b>PU de entrada</b> (valor nominal original) a cada ' + (period === 1 ? 'mês' : 'semestre') + '<br>' +
+      'Total bruto de juros: <b>' + fmt(resCDI.totalJurosBrutos) + '</b> · IR nos juros: <b>− ' + fmt(resCDI.totalIRjuros) + '</b><br>' +
+      'Juros líquidos ' + destiStr +
+      (destino !== 'livre' ? '<br>Reinvest. acumulado bruto: <b>' + fmt(resCDI.saldoReinvestFinal) + '</b> · IR s/ ganhos: <b>− ' + fmt(resCDI.irReinvest) + '</b> · Líq.: <b>' + fmt(resCDI.liqReinvest) + '</b>' : '');
+
+    document.getElementById('labelAt').textContent   = isAtCDI ? 'Ativo atual (%CDI c/ juros)' : 'Ativo atual (Pré — único cenário)';
+    document.getElementById('labelNv').textContent   = isAtCDI ? 'Ativo novo (Pré — único cenário)' : 'Ativo novo (%CDI c/ juros)';
+    document.getElementById('nomeAt').textContent    = nomeAt;
+    document.getElementById('nomeNv').textContent    = nomeNv;
+    document.getElementById('liqAtBase').textContent = fmt(liqAtBase) + (isAtCDI ? ' (CDI ' + baseStr + '%)' : '');
+    document.getElementById('subAt1').textContent    = isAtCDI
+      ? 'Principal líq.: ' + fmt(resAtBase.liqPrinc) + ' · Reinvest. líq.: ' + fmt(resAtBase.liqReinvest)
+      : 'Bruto: ' + fmt(resAtBase.saldoFinal) + ' · IR: ' + fmt(resAtBase.irPrinc);
+    document.getElementById('subAtAlt').textContent  = liqAtAlt !== null ? 'CDI alt. ' + altStr + '%: ' + fmt(liqAtAlt) : '';
+    document.getElementById('liqNvBase').textContent = fmt(liqNvBase) + (isAtCDI ? '' : ' (CDI ' + baseStr + '%)');
+    document.getElementById('subNv1').textContent    = isAtCDI
+      ? 'Bruto: ' + fmt(resNvBase.saldoFinal) + ' · IR: ' + fmt(resNvBase.irPrinc)
+      : 'Principal líq.: ' + fmt(resNvBase.liqPrinc) + ' · Reinvest. líq.: ' + fmt(resNvBase.liqReinvest);
+    document.getElementById('subNvAlt').textContent  = liqNvAlt !== null ? 'CDI alt. ' + altStr + '%: ' + fmt(liqNvAlt) : '';
+    document.getElementById('cards').style.display   = 'grid';
+
+    const difBase = liqNvBase - liqAtBase;
+    const bkBase  = breakeven(sAtBase, sNvBase);
+    const vBase   = document.getElementById('verdBase');
+    vBase.style.display = 'block';
+    vBase.innerHTML = (difBase >= 0
+      ? 'CDI base (' + baseStr + '% a.a.): a troca <b>vale a pena</b> — ativo novo entrega <b class="pos">+' + fmt(difBase) + '</b> a mais no líquido.'
+      : 'CDI base (' + baseStr + '% a.a.): a troca <b>não compensa</b> — ativo atual entrega <b class="neg">' + fmt(Math.abs(difBase)) + '</b> a mais no líquido.')
+      + bkTxt(bkBase, liqNvBase, liqAtBase);
+
+    const liqAtCenAlt = isAtCDI ? liqAtAlt  : liqAtBase;
+    const liqNvCenAlt = isAtCDI ? liqNvBase : liqNvAlt;
+    const sAtCenAlt   = isAtCDI ? sAtAlt    : sAtBase;
+    const sNvCenAlt   = isAtCDI ? sNvBase   : sNvAlt;
+    const difAlt  = liqNvCenAlt - liqAtCenAlt;
+    const bkAlt   = breakeven(sAtCenAlt, sNvCenAlt);
+    const vAlt    = document.getElementById('verdAlt');
+    vAlt.style.display = 'block';
+    vAlt.innerHTML = (difAlt >= 0
+      ? 'CDI alternativo (' + altStr + '% a.a.): a troca <b>vale a pena</b> — ativo novo entrega <b class="pos">+' + fmt(difAlt) + '</b> a mais no líquido.'
+      : 'CDI alternativo (' + altStr + '% a.a.): a troca <b>não compensa</b> — ativo atual entrega <b class="neg">' + fmt(Math.abs(difAlt)) + '</b> a mais no líquido.')
+      + bkTxt(bkAlt, liqNvCenAlt, liqAtCenAlt);
+
+    const labels = ['Hoje'];
+    for (let m = 1; m <= N; m++) labels.push('M' + m);
+
+    const datasets = [];
+    if (isAtCDI) {
+      datasets.push({ label: nomeAt + ' (CDI base ' + baseStr + '%)', data: sAtBase, borderColor: '#378ADD', borderWidth: 2,   pointRadius: 0, fill: false, tension: 0.3 });
+      datasets.push({ label: nomeAt + ' (CDI alt. ' + altStr  + '%)', data: sAtAlt,  borderColor: '#378ADD', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3, borderDash: [5,3] });
+      datasets.push({ label: nomeNv, data: sNvBase, borderColor: '#1D9E75', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 });
+    } else {
+      datasets.push({ label: nomeAt, data: sAtBase, borderColor: '#378ADD', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3 });
+      datasets.push({ label: nomeNv + ' (CDI base ' + baseStr + '%)', data: sNvBase, borderColor: '#1D9E75', borderWidth: 2,   pointRadius: 0, fill: false, tension: 0.3 });
+      datasets.push({ label: nomeNv + ' (CDI alt. ' + altStr  + '%)', data: sNvAlt,  borderColor: '#BA7517', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3, borderDash: [5,3] });
+    }
+
+    const leg = document.getElementById('legenda');
+    leg.style.display = 'flex';
+    if (isAtCDI) {
+      leg.innerHTML =
+        '<span><span class="leg-dot" style="background:#378ADD;"></span>' + nomeAt + ' CDI base</span>' +
+        '<span><span class="leg-dash" style="border-top:2px dashed #378ADD;"></span>&nbsp;CDI alt.</span>' +
+        '<span><span class="leg-dot" style="background:#1D9E75;"></span>' + nomeNv + '</span>';
+    } else {
+      leg.innerHTML =
+        '<span><span class="leg-dot" style="background:#378ADD;"></span>' + nomeAt + '</span>' +
+        '<span><span class="leg-dot" style="background:#1D9E75;"></span>' + nomeNv + ' CDI base</span>' +
+        '<span><span class="leg-dash" style="border-top:2px dashed #BA7517;"></span>&nbsp;CDI alt.</span>';
+    }
+
+    document.getElementById('chartWrap').style.display  = 'block';
+    document.getElementById('tabelaWrap').style.display = 'block';
+
+    if (chartInst) chartInst.destroy();
+    chartInst = new Chart(document.getElementById('grafico'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } } },
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 12, font: { size: 11 }, color: '#888780' }, grid: { display: false } },
+          y: { ticks: { font: { size: 11 }, color: '#888780', callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        }
+      }
+    });
+
+    const linhasMes = [];
+    for (let m = 1; m <= N; m++) {
+      const isPag = m >= proxPag && (m - proxPag) % period === 0;
+      if (m <= 3 || isPag || m === N) linhasMes.push({ m, isPag });
+    }
+
+    let html = '<thead><tr><th>Mês</th>';
+    html += isAtCDI
+      ? '<th>' + nomeAt + ' base</th><th>' + nomeAt + ' alt.</th><th>' + nomeNv + '</th><th>Dif. base</th><th>Dif. alt.</th>'
+      : '<th>' + nomeAt + '</th><th>' + nomeNv + ' base</th><th>' + nomeNv + ' alt.</th><th>Dif. base</th><th>Dif. alt.</th>';
+    html += '</tr></thead><tbody>';
+
+    linhasMes.forEach(({ m, isPag }) => {
+      const cls = isPag ? ' class="pag-row"' : '';
+      let dB, dA, row;
+      if (isAtCDI) {
+        dB = sNvBase[m] - sAtBase[m]; dA = sNvBase[m] - sAtAlt[m];
+        row = '<tr' + cls + '><td>' + m + (isPag ? ' ●' : '') + '</td><td>' + fmt(sAtBase[m]) + '</td><td>' + fmt(sAtAlt[m]) + '</td><td>' + fmt(sNvBase[m]) + '</td>';
+      } else {
+        dB = sNvBase[m] - sAtBase[m]; dA = sNvAlt[m] - sAtBase[m];
+        row = '<tr' + cls + '><td>' + m + (isPag ? ' ●' : '') + '</td><td>' + fmt(sAtBase[m]) + '</td><td>' + fmt(sNvBase[m]) + '</td><td>' + fmt(sNvAlt[m]) + '</td>';
+      }
+      row += '<td class="' + (dB>=0?'pos':'neg') + '">' + (dB>=0?'+':'') + fmt(dB) + '</td>';
+      row += '<td class="' + (dA>=0?'pos':'neg') + '">' + (dA>=0?'+':'') + fmt(dA) + '</td></tr>';
+      html += row;
+    });
+    html += '</tbody>';
+    document.getElementById('tabela').innerHTML = html;
+  }
+</script>
+</body>
+</html>
